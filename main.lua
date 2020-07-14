@@ -8,30 +8,33 @@ local level = {
   rings = string.byte(entire_level, 6),
   width = string.byte(entire_level, 7),
   height = string.byte(entire_level, 8),
-  map = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  }
+  map = {}
 }
-
 for i=1, #entire_level-8 do
   level.map[i] = string.byte(entire_level, i+8)
 end
 
 local tiles = {
-  ground = love.graphics.newImage("ground.png")
+  [1] = love.graphics.newImage("tiles/1.png"),
+  [2] = love.graphics.newImage("tiles/2.png"),
+  [3] = love.graphics.newImage("tiles/3.png"),
+  [7] = love.graphics.newImage("tiles/7.png"),
+  [9] = love.graphics.newImage("tiles/9.png"),
+  [13] = love.graphics.newImage("tiles/13.png"),
+  [14] = love.graphics.newImage("tiles/14.png"),
+  [15] = love.graphics.newImage("tiles/15.png"),
+  [16] = love.graphics.newImage("tiles/16.png"),
+  [29] = love.graphics.newImage("tiles/29.png"),
+  
+  bounce = {
+    [0] = love.graphics.newImage("tiles/bounce.png"),
+  }
 }
-local pixelScale = 30
+local pixelScale = 24
 local fullscreenEnabled = false
 
-local level_x = 16
-local level_y = 16
+local level_x = 0
+local level_y = 0
 
 
 function RGB(r, g, b)
@@ -44,8 +47,6 @@ end
 
 function love.load(args)
   if args[#args] == "-debug" then require("mobdebug").start() end
-  
-  print(level.height)
 end
 
 function love.update()
@@ -54,7 +55,7 @@ function love.update()
   my = my - level_y
   
   if love.mouse.isDown(1) then
-    level.map[get2Dfrom1D(math.floor(mx/pixelScale), math.floor(my/pixelScale), level.width)] = 1
+    level.map[get2Dfrom1D(math.floor(mx/pixelScale), math.floor(my/pixelScale), level.width)] = 29
   end
   
   if love.keyboard.isScancodeDown("d") then level_x = level_x - 4 end
@@ -70,6 +71,25 @@ function love.keypressed(key, scancode, isrepeat)
     fullscreenEnabled = not fullscreenEnabled
     love.window.setFullscreen(fullscreenEnabled)
   end
+  
+  -- Save level
+  -- TODO: Make a better way to save
+  if scancode == "z" then
+    local modified_level = string.char(
+      level.start_x,
+      level.start_y,
+      level.size,
+      level.exit_x,
+      level.exit_y,
+      level.rings,
+      level.width,
+      level.height
+    )
+    for k,v in pairs(level.map) do
+      modified_level = modified_level .. string.char(v)
+    end
+    print(love.filesystem.write("savedlevel.001", modified_level))
+  end
 end
 
 function love.draw()
@@ -83,20 +103,24 @@ function love.draw()
     for x=0, level.width-1 do
       local final_x = (x*pixelScale)+level_x
       local final_y = (y*pixelScale)+level_y
+      local tileFetched = level.map[get2Dfrom1D(x, y, level.width)]
       
       -- Limit how many squares to show at once to avoid segfaults
       if final_x < love.graphics.getWidth() and final_y < love.graphics.getHeight() and
         final_x > -pixelScale and final_y > -pixelScale then
-        if level.map[get2Dfrom1D(x, y, level.width)] == 0 then
           love.graphics.setColor(0, 0, 0)
           love.graphics.rectangle("line", final_x, final_y, pixelScale, pixelScale)
-        else
+          
           love.graphics.setColor(1, 1, 1)
-          love.graphics.draw(tiles.ground, final_x, final_y, 0, pixelScale/12)
-        end
+          if tiles[tileFetched] then
+            love.graphics.draw(tiles[tileFetched], final_x, final_y, 0, pixelScale/12)
+          elseif tileFetched ~= 0 then
+            love.graphics.print(tostring(tileFetched), final_x, final_y, 0)
+          end
       end
     end
   end
   
+  love.graphics.draw(tiles.bounce[0], (level.start_x*pixelScale)+level_x, (level.start_y*pixelScale)+level_y, 0, pixelScale/12)
   love.graphics.print(level.map[get2Dfrom1D(math.floor(mx/pixelScale), math.floor(my/pixelScale), level.width)] or "nil", 0, 500)
 end
